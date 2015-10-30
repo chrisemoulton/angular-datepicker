@@ -12,14 +12,18 @@ Module.constant('dateTimeConfig', {
         'date-picker="' + attrs.ngModel + '" ' +
         (attrs.view ? 'view="' + attrs.view + '" ' : '') +
         (attrs.maxView ? 'max-view="' + attrs.maxView + '" ' : '') +
+        (attrs.autoClose ? 'auto-close="' + attrs.autoClose + '" ' : '') +
         (attrs.template ? 'template="' + attrs.template + '" ' : '') +
         (attrs.minView ? 'min-view="' + attrs.minView + '" ' : '') +
         (attrs.partial ? 'partial="' + attrs.partial + '" ' : '') +
-        'class="dropdown-menu"></div>';
+        (attrs.step ? 'step="' + attrs.step + '" ' : '') +
+        (attrs.onSetDate ? 'on-set-date="' + attrs.onSetDate + '" ' : '') +
+        (attrs.ngModel ? 'ng-model="' + attrs.ngModel + '" ' : '') +
+        'class="date-picker-date-time"></div>';
   },
   format: 'yyyy-MM-dd HH:mm',
   views: ['date', 'year', 'month', 'hours', 'minutes'],
-  dismiss: false,
+  autoClose: false,
   position: 'relative'
 });
 
@@ -33,7 +37,8 @@ Module.directive('dateTimeAppend', function () {
   };
 });
 
-Module.directive('dateTime', ['$compile', '$document', '$filter', 'dateTimeConfig', '$parse', function ($compile, $document, $filter, dateTimeConfig, $parse) {
+Module.directive('dateTime', ['$compile', '$document', '$filter', 'dateTimeConfig', '$parse', 'datePickerUtils',
+                function ($compile, $document, $filter, dateTimeConfig, $parse, datePickerUtils) {
   var body = $document.find('body');
   var dateFilter = $filter('date');
 
@@ -46,7 +51,7 @@ Module.directive('dateTime', ['$compile', '$document', '$filter', 'dateTimeConfi
       var views = $parse(attrs.views)(scope) || dateTimeConfig.views.concat();
       var view = attrs.view || views[0];
       var index = views.indexOf(view);
-      var dismiss = attrs.dismiss ? $parse(attrs.dismiss)(scope) : dateTimeConfig.dismiss;
+      var dismiss = attrs.autoClose ? $parse(attrs.autoClose)(scope) : dateTimeConfig.autoClose;
       var picker = null;
       var position = attrs.position || dateTimeConfig.position;
       var container = null;
@@ -62,13 +67,53 @@ Module.directive('dateTime', ['$compile', '$document', '$filter', 'dateTimeConfi
         return dateFilter(value, format);
       }
 
-      function parser() {
-        return ngModel.$modelValue;
+      /*
+      function parser(viewValue) {
+        if(viewValue.length === format.length) {
+          var date = moment(viewValue, datePickerUtils.toMomentFormat(format));
+          if(date.isValid()) {
+            clear();
+            return date.toDate();
+          }
+          return viewValue;
+        }
+        return undefined;
+      }
+      */
+      function parser(viewValue) {
+        if(viewValue.length === format.length) {
+          return viewValue;
+        }
+        return undefined;
       }
 
       ngModel.$formatters.push(formatter);
       ngModel.$parsers.unshift(parser);
 
+
+      //min. max date validators
+      if (angular.isDefined(attrs.minDate)) {
+        var minVal;
+        ngModel.$validators.min = function (value) {
+            return !datePickerUtils.isValidDate(value) || angular.isUndefined(minVal) || value >= minVal;
+          };
+        attrs.$observe('minDate', function (val) {
+            minVal = new Date(val);
+            ngModel.$validate();
+          });
+      }
+
+      if (angular.isDefined(attrs.maxDate)) {
+        var maxVal;
+        ngModel.$validators.max = function (value) {
+            return !datePickerUtils.isValidDate(value) || angular.isUndefined(maxVal) || value <= maxVal;
+          };
+        attrs.$observe('maxDate', function (val) {
+            maxVal = new Date(val);
+            ngModel.$validate();
+          });
+      }
+      //end min, max date validator
 
       var template = dateTimeConfig.template(attrs);
 
@@ -109,6 +154,10 @@ Module.directive('dateTime', ['$compile', '$document', '$filter', 'dateTimeConfi
           if (dismiss && views[views.length - 1] === view) {
             clear();
           }
+        });
+
+        scope.$on('hidePicker', function () {
+          element.triggerHandler('blur');
         });
 
         scope.$on('$destroy', clear);

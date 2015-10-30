@@ -10,6 +10,13 @@ Module.directive('dateRange', function () {
       end: '='
     },
     link: function (scope, element, attrs) {
+
+      /*
+       * If no date is set on scope, set current date from user system
+       */
+      scope.start = new Date(scope.start || new Date());
+      scope.end = new Date(scope.end || new Date());
+
       attrs.$observe('disabled', function(isDisabled){
           scope.disableDatePickers = !!isDisabled;
         });

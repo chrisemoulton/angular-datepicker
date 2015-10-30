@@ -25,7 +25,7 @@ module.exports = function (grunt) {
     watch: {
       less: {
         files: ['<%= yeoman.app %>/styles/{,*/}*.less'],
-        tasks: ['recess', 'copy:styles'],
+        tasks: ['less', 'copy:styles'],
         options: {
           nospawn: true
         }
@@ -43,7 +43,7 @@ module.exports = function (grunt) {
         ]
       }
     },
-    recess: {
+    less: {
       options: {
         compile: true
       },
@@ -160,15 +160,20 @@ module.exports = function (grunt) {
       dist: {
         options: {
           base: '<%= yeoman.app %>',
-          module: 'datePicker'
+          module: 'datePicker',
+          url: function(templateUrl) {
+            // on production it should be the same path as the one defined on datePicker.js
+            return templateUrl.replace('app/', '');
+          }
         },
         src: '<%= yeoman.app %>/templates/*.html',
         dest: '<%= yeoman.tmp %>/templates.js'
+
       }
     },
     concurrent: {
       server: [
-        'recess',
+        'less',
         'copy:styles'
       ],
       test: [
@@ -184,7 +189,7 @@ module.exports = function (grunt) {
       },
       js: {
         src: ['<%= yeoman.app %>/scripts/{datePicker,input,dateRange,datePickerUtils}.js', '<%= yeoman.tmp %>/templates.js'],
-        dest: '<%= yeoman.dist %>/index.js',
+        dest: '<%= yeoman.dist %>/angular-datepicker.js',
         options: {
           banner:'\'use strict\';\n(function(angular){\n',
           footer:'})(angular);',
@@ -196,16 +201,22 @@ module.exports = function (grunt) {
       },
       css: {
         src: ['<%= yeoman.tmp %>/{,*/}*.css'],
-        dest: '<%= yeoman.dist %>/index.css'
+        dest: '<%= yeoman.dist %>/angular-datepicker.css'
+      }
+    },
+
+    bump : {
+      options : {
+        files : [ 'package.json', 'bower.json' ],
+        commitFiles : [ 'package.json', 'bower.json' ],
+        pushTo : 'origin'
       }
     }
   });
 
-  grunt.renameTask('regarde', 'watch');
-
   grunt.registerTask('server', [
     'clean:server',
-    'recess',
+    'less',
     'concurrent:server',
     'connect:livereload',
     'open',
@@ -221,7 +232,7 @@ module.exports = function (grunt) {
   grunt.registerTask('build', [
     'jshint',
     'clean:dist',
-    'recess',
+    'less',
     'ngtemplates',
     'concat',
     'cssmin',
